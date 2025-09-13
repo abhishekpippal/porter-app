@@ -1,12 +1,13 @@
 import React, { useState } from "react";
-import { trackOrder, updateOrder, deleteOrder } from "../services/orderService"; 
+import { trackOrder, updateOrder, deleteOrder } from "../services/orderService";
+import "./VoiceInterface.css";
 
 const SpeechRecognition =
   window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = SpeechRecognition ? new SpeechRecognition() : null;
 
 interface ChatMessage {
-  role: "user" | "ai";
+  role: "user" | "assistant";
   content: string;
 }
 
@@ -244,44 +245,45 @@ const VoiceInterface: React.FC = () => {
   };
 
   return (
-    <div>
-      <button onClick={handleListen} disabled={listening}>
-        {listening ? "Listening..." : "Start Voice Command"}
-      </button>
-      <form
-        onSubmit={handleTextSubmit}
-        style={{ display: "inline", marginLeft: "1em" }}
-      >
+    <div className="voice-interface-container">
+      <div className="chat-container">
+        {chatHistory.map((msg, index) => (
+          <div
+            key={index}
+            className={`chat-message ${msg.role === "user" ? "user-message" : "ai-message"}`}
+          >
+            {msg.content}
+          </div>
+        ))}
+      </div>
+      
+      <div className="input-container">
         <input
           type="text"
+          className="input-field"
           value={textInput}
           onChange={(e) => setTextInput(e.target.value)}
           placeholder="Type your question..."
         />
-        <button type="submit">Send</button>
-      </form>
-      <div style={{ marginTop: "1em" }}>
-        <div>
-          {chatHistory.map((msg, idx) => (
-            <div key={idx} style={{ marginBottom: "0.5em" }}>
-              <strong>{msg.role === "user" ? "You" : "AI"}:</strong>{" "}
-              {msg.content}
-            </div>
-          ))}
-        </div>
+        <button
+          className={`button ${listening ? "listening" : ""}`}
+          onClick={() => {
+            if (listening) {
+              stopListening();
+            } else {
+              startListening();
+            }
+          }}
+        >
+          {listening ? "Stop" : "Start Voice Command"}
+        </button>
+        <button
+          className="button"
+          onClick={() => handleUserInput(textInput)}
+        >
+          Send
+        </button>
       </div>
-      {reminders.length > 0 && (
-        <div style={{ marginTop: "1em" }}>
-          <h4>Reminders:</h4>
-          <ul>
-            {reminders.map((rem, idx) => (
-              <li key={idx}>
-                <strong>{rem.time}</strong>: {rem.text}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 };

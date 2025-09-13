@@ -2,12 +2,12 @@
   "name": "voice-ai-mern-app",
   "version": "1.0.0",
   "description": "A voice-first interface application using MERN stack with AI capabilities.",
-  "main": "src/app.ts",
-  "scripts": {
+  "main": "src/app.ts",  "scripts": {
     "start": "ts-node src/app.ts",
     "dev": "nodemon src/app.ts",
     "build": "tsc",
-    "test": "echo \"No tests specified\" && exit 0"
+    "test": "echo \"No tests specified\" && exit 0",
+    "seed": "ts-node src/scripts/seed.ts"
   },
   "dependencies": {
     "@types/mongoose": "^5.11.97",
