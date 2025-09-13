@@ -14,6 +14,8 @@ import {
   Link,
   Button,
   Divider,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
 import MailOutlineOutlinedIcon from "@mui/icons-material/MailOutlineOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
@@ -21,10 +23,99 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import KeyOutlinedIcon from "@mui/icons-material/KeyOutlined";
 import MicIcon from "@mui/icons-material/Mic";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+
+interface LoginFormData {
+  email: string;
+  password: string;
+  rememberMe: boolean;
+}
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  const [formData, setFormData] = useState<LoginFormData>({
+    email: '',
+    password: '',
+    rememberMe: false,
+  });
+
+  const handleInputChange = (field: keyof LoginFormData) => (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    // Clear errors when user starts typing
+    if (error) setError(null);
+  };
+
+  const validateForm = (): boolean => {
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    if (!formData.password.trim()) {
+      setError('Password is required');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Call the real API endpoint
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to login');
+      }
+
+      // Store user data and token from API response
+      localStorage.setItem('userEmail', data.user.email);
+      localStorage.setItem('userName', `${data.user.firstName} ${data.user.lastName}`);
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('userId', data.user.id);
+      
+      // Navigate to assistant page after successful login
+      navigate('/assistant');
+
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err.message || 'Failed to login. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Paper
@@ -62,15 +153,24 @@ export default function Login() {
           <Tab label="Login" />
           <Tab label="Sign Up" component={RouterLink} to="/signup" disableRipple />
         </Tabs>
-      </Box>
+      </Box>      {/* Error Messages */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
       {/* Form */}
-      <Stack component="form" spacing={2.5}>
+      <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
         <Box>
-          <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>Email or Phone</Typography>
+          <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>Email</Typography>
           <TextField
-            placeholder="Enter your email or phone"
+            placeholder="Enter your email"
+            type="email"
             fullWidth
+            value={formData.email}
+            onChange={handleInputChange('email')}
+            disabled={loading}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -87,6 +187,9 @@ export default function Login() {
             placeholder="Enter your password"
             type={showPassword ? "text" : "password"}
             fullWidth
+            value={formData.password}
+            onChange={handleInputChange('password')}
+            disabled={loading}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -105,24 +208,66 @@ export default function Login() {
         </Box>
 
         <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <FormControlLabel control={<Checkbox size="small" />} label="Remember me" />
+          <FormControlLabel 
+            control={
+              <Checkbox 
+                size="small" 
+                checked={formData.rememberMe}
+                onChange={handleInputChange('rememberMe')}
+                disabled={loading}
+              />
+            } 
+            label="Remember me" 
+          />
           <Link component={RouterLink} to="/forgot-password" underline="hover">Forgot password?</Link>
         </Stack>
 
-        <Button type="submit" variant="contained" size="large" fullWidth sx={{ borderRadius: 2, py: 1.25 }}>
-          Sign In
+        <Button 
+          type="submit" 
+          variant="contained" 
+          size="large" 
+          fullWidth 
+          disabled={loading}
+          sx={{ 
+            borderRadius: 2, 
+            py: 1.25,
+            "&:hover": { bgcolor: "grey.900" },
+          }}
+        >
+          {loading ? (
+            <>
+              <CircularProgress size={20} sx={{ mr: 1 }} />
+              Signing In...
+            </>
+          ) : (
+            'Sign In'
+          )}
         </Button>
       </Stack>
 
       {/* Divider */}
       <Divider sx={{ my: 3 }}>
         <Typography variant="caption" color="text.secondary">OR CONTINUE WITH</Typography>
-      </Divider>
-
-      {/* Alt sign-in */}
+      </Divider>      {/* Alt sign-in */}
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-        <Button variant="outlined" fullWidth startIcon={<KeyOutlinedIcon />}>OTP</Button>
-        <Button variant="outlined" fullWidth startIcon={<MicIcon />}>Voice</Button>
+        <Button 
+          variant="outlined" 
+          fullWidth 
+          startIcon={<KeyOutlinedIcon />}
+          disabled={loading}
+          onClick={() => setError('OTP login coming soon!')}
+        >
+          OTP
+        </Button>
+        <Button 
+          variant="outlined" 
+          fullWidth 
+          startIcon={<MicIcon />}
+          disabled={loading}
+          onClick={() => setError('Voice login coming soon!')}
+        >
+          Voice
+        </Button>
       </Stack>
     </Paper>
   );

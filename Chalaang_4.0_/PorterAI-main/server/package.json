@@ -2,21 +2,28 @@
   "name": "voice-ai-mern-app",
   "version": "1.0.0",
   "description": "A voice-first interface application using MERN stack with AI capabilities.",
-  "main": "src/app.ts",  "scripts": {
+  "main": "src/app.ts",
+  "scripts": {
     "start": "ts-node src/app.ts",
     "dev": "nodemon src/app.ts",
     "build": "tsc",
     "test": "echo \"No tests specified\" && exit 0",
-    "seed": "ts-node src/scripts/seed.ts"
+    "seed": "ts-node src/scripts/seed.ts",
+    "create-test-users": "ts-node src/scripts/createTestUsers.ts"
   },
   "dependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/mongoose": "^5.11.97",
     "axios": "^0.21.1",
+    "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^8.6.0",
     "express": "^4.17.1",
     "groq-sdk": "^0.32.0",
+    "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.1",
+    "node-fetch": "^3.3.2",
     "openai": "^5.20.0"
   },
   "devDependencies": {

@@ -14,6 +14,8 @@ import {
   Link,
   Button,
   Divider,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
 import Grid from "@mui/material/Grid"; // v7 Grid (use `size` prop)
 import MailOutlineOutlinedIcon from "@mui/icons-material/MailOutlineOutlined";
@@ -23,10 +25,132 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import KeyOutlinedIcon from "@mui/icons-material/KeyOutlined";
 import MicIcon from "@mui/icons-material/Mic";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+
+interface SignupFormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  password: string;
+  agreeToTerms: boolean;
+}
 
 export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  const [formData, setFormData] = useState<SignupFormData>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    password: '',
+    agreeToTerms: false,
+  });
+
+  const handleInputChange = (field: keyof SignupFormData) => (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const value = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    // Clear errors when user starts typing
+    if (error) setError(null);
+  };
+
+  const validateForm = (): boolean => {
+    if (!formData.firstName.trim()) {
+      setError('First name is required');
+      return false;
+    }
+    if (!formData.lastName.trim()) {
+      setError('Last name is required');
+      return false;
+    }
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+    if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    if (!formData.phone.trim()) {
+      setError('Phone number is required');
+      return false;
+    }
+    if (!formData.password.trim()) {
+      setError('Password is required');
+      return false;
+    }
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return false;
+    }
+    if (!formData.agreeToTerms) {
+      setError('You must agree to the Terms of Service and Privacy Policy');
+      return false;
+    }
+    return true;
+  };
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Call the real API endpoint
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create account');
+      }
+
+      setSuccess('Account created successfully! Redirecting to login...');
+      
+      // Store user data and token from API response
+      localStorage.setItem('userEmail', data.user.email);
+      localStorage.setItem('userName', `${data.user.firstName} ${data.user.lastName}`);
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('userId', data.user.id);
+      
+      // Redirect to login page after a short delay
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+
+    } catch (err: any) {
+      console.error('Signup error:', err);
+      setError(err.message || 'Failed to create account. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Paper
@@ -45,7 +169,7 @@ export default function Signup() {
       <Stack spacing={1} alignItems="center" sx={{ mb: 2 }}>
         <Typography variant="h4" fontWeight={900}>Welcome</Typography>
         <Typography color="text.secondary" align="center">
-          Sign in to access your voice-first logistics partner
+          Create your account to access Porter Saathi
         </Typography>
       </Stack>
 
@@ -66,19 +190,44 @@ export default function Signup() {
         </Tabs>
       </Box>
 
+      {/* Error/Success Messages */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+      
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          {success}
+        </Alert>
+      )}
+
       {/* Form */}
-      <Stack component="form" spacing={2.5}>
+      <Stack component="form" spacing={2.5} onSubmit={handleSubmit}>
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, sm: 6 }}>
             <Box>
               <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>First Name</Typography>
-              <TextField placeholder="First name" fullWidth />
+              <TextField 
+                placeholder="First name" 
+                fullWidth 
+                value={formData.firstName}
+                onChange={handleInputChange('firstName')}
+                disabled={loading}
+              />
             </Box>
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
             <Box>
               <Typography variant="body2" fontWeight={700} sx={{ mb: 1 }}>Last Name</Typography>
-              <TextField placeholder="Last name" fullWidth />
+              <TextField 
+                placeholder="Last name" 
+                fullWidth 
+                value={formData.lastName}
+                onChange={handleInputChange('lastName')}
+                disabled={loading}
+              />
             </Box>
           </Grid>
         </Grid>
@@ -89,6 +238,9 @@ export default function Signup() {
             placeholder="Enter your email"
             type="email"
             fullWidth
+            value={formData.email}
+            onChange={handleInputChange('email')}
+            disabled={loading}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -104,6 +256,9 @@ export default function Signup() {
           <TextField
             placeholder="+91 XXXXX XXXXX"
             fullWidth
+            value={formData.phone}
+            onChange={handleInputChange('phone')}
+            disabled={loading}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -120,6 +275,9 @@ export default function Signup() {
             placeholder="Create a password"
             type={showPassword ? "text" : "password"}
             fullWidth
+            value={formData.password}
+            onChange={handleInputChange('password')}
+            disabled={loading}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -138,7 +296,14 @@ export default function Signup() {
         </Box>
 
         <FormControlLabel
-          control={<Checkbox size="small" />}
+          control={
+            <Checkbox 
+              size="small" 
+              checked={formData.agreeToTerms}
+              onChange={handleInputChange('agreeToTerms')}
+              disabled={loading}
+            />
+          }
           label={
             <Typography variant="body2">
               I agree to the{" "}
@@ -153,9 +318,22 @@ export default function Signup() {
           type="submit"
           variant="contained"
           fullWidth
-          sx={{ borderRadius: 2, py: 1.25, "&:hover": { bgcolor: "grey.900" } }}
+          disabled={loading}
+          sx={{ 
+            borderRadius: 2, 
+            py: 1.25, 
+            "&:hover": { bgcolor: "grey.900" },
+            position: 'relative'
+          }}
         >
-          Create Account
+          {loading ? (
+            <>
+              <CircularProgress size={20} sx={{ mr: 1 }} />
+              Creating Account...
+            </>
+          ) : (
+            'Create Account'
+          )}
         </Button>
       </Stack>
 
@@ -164,8 +342,24 @@ export default function Signup() {
       </Divider>
 
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-        <Button variant="outlined" fullWidth startIcon={<KeyOutlinedIcon />}>OTP</Button>
-        <Button variant="outlined" fullWidth startIcon={<MicIcon />}>Voice</Button>
+        <Button 
+          variant="outlined" 
+          fullWidth 
+          startIcon={<KeyOutlinedIcon />}
+          disabled={loading}
+          onClick={() => setError('OTP signup coming soon!')}
+        >
+          OTP
+        </Button>
+        <Button 
+          variant="outlined" 
+          fullWidth 
+          startIcon={<MicIcon />}
+          disabled={loading}
+          onClick={() => setError('Voice signup coming soon!')}
+        >
+          Voice
+        </Button>
       </Stack>
     </Paper>
   );
